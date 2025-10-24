@@ -5,6 +5,8 @@ name = "pypi"
 
 [packages]
 pillow = "*"
+pypdf = "*"
+pytest-mock = "*"
 
 [dev-packages]
 
