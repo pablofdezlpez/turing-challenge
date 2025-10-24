@@ -1,6 +1,6 @@
 import pypdf
 import pytest
-from ingest import chunk_document, document_to_text, load_document
+from ingest import document_to_text, load_document
 
 
 @pytest.fixture
@@ -38,16 +38,3 @@ def test_document_to_text(mocker, document_path):
     text = document_to_text(document)
     assert isinstance(text, str)
     assert all(isinstance(line, str) for line in text.splitlines())
-
-def test_chunk_document():
-    document = "This is a sample document. " * 100
-    chunks = chunk_document(document, chunk_size=50, overlap=10)
-    assert isinstance(chunks, list)
-    assert all(isinstance(chunk, str) for chunk in chunks)
-    assert len(chunks) == len(document) // (50 - 10) + 1
-
-def test_chunk_smaller_than_chunk_size():
-    document = "Short doc."
-    chunks = chunk_document(document, chunk_size=50, overlap=10)
-    assert len(chunks) == 1
-    assert chunks[0] == document

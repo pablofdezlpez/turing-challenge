@@ -1,6 +1,13 @@
-import pypdf
-from PIL import Image
 import io
+
+import pypdf
+from dotenv import load_dotenv
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from PIL import Image
+
+load_dotenv()
 
 def image_to_text(image: Image.Image) -> str:
     #TODO: integrate a vision model
@@ -29,30 +36,25 @@ def document_to_text(document: pypdf.PdfReader) -> str:
             image = Image.open(io.BytesIO(image_file_object.data))
             text_image = image_to_text(image)
             text += f"\n[Image {count + 1} info]: {text_image}"
-        
+            
     return text
 
-def chunk_document(document: str, chunk_size: int = 1000, overlap: int = 200) -> list[str]:
-    """Chunk the document into smaller pieces."""
-    if len(document) <= chunk_size:
-        return [document]
-    chunks = []
-    start = 0
-    while start < len(document):
-        end = min(start + chunk_size, len(document))
-        chunks.append(document[start:end])
-        start += chunk_size - overlap
-    return chunks
-
-def ingest_file(file_path: str) -> list[str]:
-    document = load_document(file_path)
-    chunks = chunk_document(document)
-    vector_store = None
-    document_ids = vector_store.add_documents(documents=chunks)
-    return document_ids
 
 if __name__ == "__main__":
     file_path = "docs/sample.pdf"
     document = load_document(file_path)
-    pages = document_to_text(document)
-    chunks = chunk_document(" ".join(pages))
+      
+    text = document_to_text(document)
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,  # chunk size (characters)
+        chunk_overlap=200,  # chunk overlap (characters)
+        add_start_index=True,  # track index in original document
+    )
+    chunks = text_splitter.create_documents(text)
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+    vector_store = Chroma(
+        collection_name="example_collection",
+        embedding_function=embeddings,
+        persist_directory="./chroma_langchain_db",
+    )
+    document_ids = vector_store.add_documents(documents=chunks)
