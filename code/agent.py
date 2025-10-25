@@ -4,6 +4,7 @@ from langgraph.graph import START, StateGraph
 from langchain.chat_models import init_chat_model
 import dotenv
 import os
+from prompts import SYSTEM_PROMPT, USER_PROMPT, SUMMARIZE_PROMPT
 
 dotenv.load_dotenv()
 
@@ -28,7 +29,6 @@ def init_llm(model: str = "gpt-4o-550k-2", temperature: float = 0.0) -> BaseChat
 
 def get_input(text: str) -> str:
     return input(text)
-
 
 def get_user_input(state: State) -> str:
     # If exist chat history, show last assistant message
@@ -69,11 +69,10 @@ def is_chat_too_long(state: State) -> bool:
 
 def summarize_chat_hist(state: State):
     user_message = state.chat_history.pop(-1)
-    summary = state.llm.invoke(
-        state.chat_history + [{"role": "user", "content": "summarize our conversation thus far in a few paragraphs"}]
-    )
+    prompt = SUMMARIZE_PROMPT.format(chat_history="\n".join([f"{m['role']}: {m['content']}" for m in state.chat_history]))
+    summary = state.llm.invoke({"role": "user", "content": prompt})
     state.chat_history = [
-        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "assitant", "content": summary},
         {"role": "user", "content": user_message},
     ]
@@ -82,7 +81,7 @@ def summarize_chat_hist(state: State):
 
 def agent_invoke(state: State) -> State:
     context = "\n".join(state.context)
-    prompt = f"Context:\n{context}\n\nUser Query:\n{state.query}\n\nAnswer:"
+    prompt = USER_PROMPT.format(query=state.query, context=context)
     state.chat_history[-1] = {"role": "user", "content": prompt}
     response = state["llm"].chat.completions.create(messages=state.chat_history)
     answer = response.choices[0].message["content"]
@@ -106,9 +105,8 @@ def build_graph() -> StateGraph:
 
 
 def create_initial_state(vector_store: object, n_retrieved_docs: int = 3, model="gpt-4o", temperature=0.0) -> State:
-    system_prompt = "You are a helpful assistant."
     llm = init_llm(model, temperature)
-    chat_history = [{"role": "system", "content": system_prompt}]
+    chat_history = [{"role": "system", "content": SYSTEM_PROMPT}]
     initial_state = State(
         vector_store=vector_store, n_retrieved_docs=n_retrieved_docs, llm=llm, chat_history=chat_history
     )
