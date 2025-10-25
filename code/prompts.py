@@ -12,7 +12,5 @@ Context:
 {context}
 """)
 
-SUMMARIZE_PROMPT = PromptTemplate.from_template("""Summarize the following conversation between a user and an assistant in a few paragraphs.
-Conversation:
-{chat_history}
-""")
+SUMMARIZE_PROMPT = """Summarize the conversation thus far
+"""

@@ -1,14 +1,11 @@
 import io
-
 import pypdf
-from dotenv import load_dotenv
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from PIL import Image
 from pathlib import Path
 
-load_dotenv()
+from utils import init_vector_store
 
 
 def image_to_text(image: Image.Image) -> str:
@@ -34,12 +31,12 @@ def document_to_text(document: pypdf.PdfReader) -> str:
         str: full text
     """
     text = ""
-    for page in document.pages:
+    for i, page in enumerate(document.pages):
         text += page.extract_text()
         for count, image_file_object in enumerate(page.images):
             image = Image.open(io.BytesIO(image_file_object.data))
             text_image = image_to_text(image)
-            text += f"\n[Image {count + 1} info]: {text_image}"
+            text += f"\n[On page {i + 1} Image {count + 1} info]: {text_image}"
 
     return text
 
@@ -56,12 +53,7 @@ def ingest_docs(docs_path: str):
             add_start_index=True,  # track index in original document
         )
         chunks = text_splitter.create_documents(text)
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-        vector_store = Chroma(
-            collection_name="example_collection",
-            embedding_function=embeddings,
-            persist_directory="./chroma_langchain_db",
-        )
+        vector_store = init_vector_store()
         document_ids = vector_store.add_documents(documents=chunks)
         return document_ids
 
