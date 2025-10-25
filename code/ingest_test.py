@@ -1,11 +1,11 @@
 import pypdf
 import pytest
 from ingest import document_to_text, load_document
-
+from pathlib import Path
 
 @pytest.fixture
 def document_path():
-    return "docs/sample.pdf"
+    return Path("docs/sample.pdf")
 
 def test_load_document(document_path):
     document = load_document(document_path)
@@ -13,7 +13,7 @@ def test_load_document(document_path):
     assert len(document.pages) > 0
 
 def test_load_document_invalid_path():
-    file_path = "non_existent_file.pdf"
+    file_path = Path("non_existent_file.pdf")
     try:
         load_document(file_path)
     except FileNotFoundError:
@@ -22,7 +22,7 @@ def test_load_document_invalid_path():
         assert False, "Expected FileNotFoundError"
 
 def test_load_document_unsupported_format():
-    file_path = "docs/sample.jpeg"
+    file_path = Path("docs/sample.jpeg")
     try:
         load_document(file_path)
     except ValueError:
