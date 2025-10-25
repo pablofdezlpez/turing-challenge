@@ -10,15 +10,18 @@ from pathlib import Path
 
 load_dotenv()
 
+
 def image_to_text(image: Image.Image) -> str:
-    #TODO: integrate a vision model
+    # TODO: integrate a vision model
     return "Extracted text from image"
 
+
 def load_document(file_path: Path) -> pypdf.PdfReader:
-    if not file_path.suffix == '.pdf':
+    if not file_path.suffix == ".pdf":
         raise ValueError("Unsupported file format")
     document = pypdf.PdfReader(file_path)
     return document
+
 
 def document_to_text(document: pypdf.PdfReader) -> str:
     """Extract the text from all pages in the document.
@@ -37,14 +40,15 @@ def document_to_text(document: pypdf.PdfReader) -> str:
             image = Image.open(io.BytesIO(image_file_object.data))
             text_image = image_to_text(image)
             text += f"\n[Image {count + 1} info]: {text_image}"
-            
+
     return text
 
-def ingest_docs(docs_path:str):
+
+def ingest_docs(docs_path: str):
     docs_path = Path(docs_path)
     for file_path in docs_path.iterdir():
         document = load_document(file_path)
-        
+
         text = document_to_text(document)
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,  # chunk size (characters)
@@ -60,6 +64,7 @@ def ingest_docs(docs_path:str):
         )
         document_ids = vector_store.add_documents(documents=chunks)
         return document_ids
+
 
 if __name__ == "__main__":
     ingest_docs("docs/")

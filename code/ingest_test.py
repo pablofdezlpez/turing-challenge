@@ -3,14 +3,17 @@ import pytest
 from ingest import document_to_text, load_document
 from pathlib import Path
 
+
 @pytest.fixture
 def document_path():
     return Path("docs/sample.pdf")
+
 
 def test_load_document(document_path):
     document = load_document(document_path)
     assert isinstance(document, pypdf.PdfReader)
     assert len(document.pages) > 0
+
 
 def test_load_document_invalid_path():
     file_path = Path("non_existent_file.pdf")
@@ -21,6 +24,7 @@ def test_load_document_invalid_path():
     else:
         assert False, "Expected FileNotFoundError"
 
+
 def test_load_document_unsupported_format():
     file_path = Path("docs/sample.jpeg")
     try:
@@ -29,6 +33,7 @@ def test_load_document_unsupported_format():
         assert True
     else:
         assert False, "Expected ValueError for unsupported format"
+
 
 def test_document_to_text(mocker, document_path):
     mocked_image = "mocked image"
