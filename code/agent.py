@@ -1,12 +1,12 @@
-
 from dataclasses import dataclass
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import START, StateGraph
 
 from prompts import SYSTEM_PROMPT, USER_PROMPT, SUMMARIZE_PROMPT
 from langchain.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
-from utils import get_input, init_llm, init_vector_store
+from utils import get_input, init_chat_llm, init_vector_store
 from tools import execute_python_code
+
 
 @dataclass
 class State:
@@ -54,25 +54,28 @@ def is_chat_too_long(state: State) -> bool:
         total_tokens += tokens
     return "agent_invoke"
 
+
 def is_tool_call(state: State) -> bool:
     last_message = state.chat_history[-1]
     if isinstance(last_message, AIMessage) and len(last_message.tool_calls) > 0:
-        return 'execute_tool'
-    return 'user_input'
+        return "execute_tool"
+    return "user_input"
+
 
 def execute_tool(state: State) -> State:
     last_message = state.chat_history[-1]
     tool_call = last_message.tool_calls[0]
 
     # TODO: find a generic way to call tools
-    if tool_call['name'] == "execute_python_code":
-        tool_output = execute_python_code.run(tool_call['args'])
-        observation_message = ToolMessage(content=f"Tool Output:\n{tool_output}", tool_call_id=tool_call['id'])
+    if tool_call["name"] == "execute_python_code":
+        tool_output = execute_python_code.run(tool_call["args"])
+        observation_message = ToolMessage(content=f"Tool Output:\n{tool_output}", tool_call_id=tool_call["id"])
         state.chat_history.append(observation_message)
     else:
         raise ValueError(f"Unknown tool: {tool_call['name']}")
 
     return state
+
 
 def summarize_chat_hist(state: State):
     user_message = state.chat_history.pop(-1)
@@ -115,7 +118,7 @@ def build_graph() -> StateGraph:
 
 
 def create_initial_state(vector_store: object, n_retrieved_docs: int = 3, model="gpt-5-nano", temperature=0.0) -> State:
-    llm = init_llm(model, temperature)
+    llm = init_chat_llm(model, temperature)
     chat_history = [SystemMessage(content=SYSTEM_PROMPT)]
     initial_state = State(
         vector_store=vector_store, n_retrieved_docs=n_retrieved_docs, llm=llm, chat_history=chat_history
