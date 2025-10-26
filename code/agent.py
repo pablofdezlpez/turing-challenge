@@ -43,9 +43,8 @@ def get_user_input(state: State) -> str:
             assistant_message = state.chat_history[-1].content
 
     user_input = get_input(assistant_message)
-    state.query = user_input
-    state.chat_history.append(HumanMessage(content=user_input))
-    return state
+
+    return user_input
 
 
 def retrieve(state: State):
@@ -108,7 +107,7 @@ def is_tool_call(state: State) -> bool:
     last_message = state.chat_history[-1]
     if isinstance(last_message, AIMessage) and len(last_message.tool_calls) > 0:
         return "execute_tool"
-    return "END"
+    return END
 
 
 #### DEFINITION OF GRAPH AND RUNNER #####
@@ -134,10 +133,13 @@ def build_graph() -> StateGraph:
 
 def run_agent(graph: StateGraph, initial_state: State):
     state = initial_state
-    state = get_user_input(state)
     while True:
-        state = graph.invoke(state)
-
+        user_message = get_user_input(state)
+        state.chat_history.append(HumanMessage(content=user_message))
+        state.query = user_message
+        response = graph.invoke(state)
+        print("\nAssistant:", response['chat_history'][-1].content, "\n")
+        state.chat_history.append(AIMessage(content=response['chat_history'][-1].content))
 
 if __name__ == "__main__":
     # Example usage
