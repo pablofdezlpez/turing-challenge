@@ -15,6 +15,7 @@ langchain-chroma = "*"
 openai = "*"
 python-dotenv = "*"
 pathlib = "*"
+restrictedpython = "*"
 
 [dev-packages]
 

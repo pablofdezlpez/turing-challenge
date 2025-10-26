@@ -4,9 +4,9 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import START, StateGraph
 
 from prompts import SYSTEM_PROMPT, USER_PROMPT, SUMMARIZE_PROMPT
-from langchain.messages import SystemMessage, HumanMessage, AIMessage
+from langchain.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 from utils import get_input, init_llm, init_vector_store
-
+from tools import execute_python_code
 
 @dataclass
 class State:
@@ -24,11 +24,11 @@ def get_user_input(state: State) -> str:
     assistant_message = "How can I assist you today?\n"
 
     # If exist chat history, show last assistant message
-    if state.chat_history:
+    if len(state.chat_history) > 1:
         if isinstance(state.chat_history[-1], HumanMessage):
             # If last message is from user, raise error as two inputs have been collected
             raise ValueError(f"Last message in chat history is already from user.{state.chat_history[-1].content}")
-        elif isinstance(state.chat_history[-1], AIMessage):
+        else:
             assistant_message = state.chat_history[-1].content
 
     user_input = get_input(assistant_message)
@@ -54,6 +54,25 @@ def is_chat_too_long(state: State) -> bool:
         total_tokens += tokens
     return "agent_invoke"
 
+def is_tool_call(state: State) -> bool:
+    last_message = state.chat_history[-1]
+    if isinstance(last_message, AIMessage) and len(last_message.tool_calls) > 0:
+        return 'execute_tool'
+    return 'user_input'
+
+def execute_tool(state: State) -> State:
+    last_message = state.chat_history[-1]
+    tool_call = last_message.tool_calls[0]
+
+    # TODO: find a generic way to call tools
+    if tool_call['name'] == "execute_python_code":
+        tool_output = execute_python_code.run(tool_call['args'])
+        observation_message = ToolMessage(content=f"Tool Output:\n{tool_output}", tool_call_id=tool_call['id'])
+        state.chat_history.append(observation_message)
+    else:
+        raise ValueError(f"Unknown tool: {tool_call['name']}")
+
+    return state
 
 def summarize_chat_hist(state: State):
     user_message = state.chat_history.pop(-1)
@@ -69,7 +88,7 @@ def summarize_chat_hist(state: State):
 def agent_invoke(state: State) -> State:
     context = "\n".join(state.context)
     prompt = USER_PROMPT.format(query=state.query, context=context)
-    state.chat_history.append(HumanMessage(content=prompt))
+    state.chat_history[-1] = HumanMessage(content=prompt)
     response = state.llm.invoke(state.chat_history)
     state.chat_history.append(response)
     return state
@@ -81,12 +100,15 @@ def build_graph() -> StateGraph:
     graph_builder.add_node("retriever", retriever)
     graph_builder.add_node("agent_invoke", agent_invoke)
     graph_builder.add_node("summarize_chat_hist", summarize_chat_hist)
+    graph_builder.add_node("execute_tool", execute_tool)
 
     graph_builder.add_edge(START, "user_input")
     graph_builder.add_edge("user_input", "retriever")
     graph_builder.add_conditional_edges("retriever", is_chat_too_long)
+    graph_builder.add_conditional_edges("agent_invoke", is_tool_call)
+    graph_builder.add_edge("execute_tool", "user_input")
     graph_builder.add_edge("summarize_chat_hist", "agent_invoke")
-    graph_builder.add_edge("agent_invoke", "user_input")
+
     # TODO: Escape node?
     graph = graph_builder.compile()
     return graph
