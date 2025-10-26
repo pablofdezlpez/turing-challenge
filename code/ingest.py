@@ -4,9 +4,18 @@ import pypdf
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from PIL import Image
 from pathlib import Path
+from pydantic import BaseModel
 
 from utils import init_vector_store
 
+class StructuredOutput(BaseModel):
+    name: str
+    age: int
+    role: str
+    years_of_experience: int
+
+def extract_structured_data(text: str) -> StructuredOutput:
+    pass
 
 def image_to_text(image: Image.Image) -> str:
     # TODO: integrate a vision model
