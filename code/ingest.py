@@ -7,6 +7,7 @@ from pathlib import Path
 from pydantic import BaseModel
 from langchain.chat_models import BaseChatModel
 from utils import init_vector_store, init_chat_llm, image_to_base64
+from prompts import EXTRACT_PROMPT, IMAGE_DESCRIPTION_PROMPT
 
 
 class StructuredOutput(BaseModel):
@@ -17,30 +18,28 @@ class StructuredOutput(BaseModel):
 
 
 def extract_structured_data(text: str, llm: BaseChatModel) -> StructuredOutput:
-    response = llm.invoke([
-            {'role': 'system', 'content': 'Extract the following fields from the given CV text: name, age, role, years_of_experience. Return the response in a structured format.'},
-            {"role": "user", "content": text}
-        ]
-    )
+    """Extract structured data from CV"""
+    response = llm.invoke([{"role": "system", "content": EXTRACT_PROMPT}, {"role": "user", "content": text}])
 
     return response
 
 
 def image_to_text(image: Image.Image, vision_llm: BaseChatModel) -> str:
-    description = vision_llm.invoke([
-        {
-            "role": "user",
-            "content": [
-                    {"type": "text", "text": "Describe the content of this image."},
+    """Describe the content of an image using vision-capable LLM"""
+    description = vision_llm.invoke(
+        [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": IMAGE_DESCRIPTION_PROMPT},
                     {
-                        "type": "image", 
+                        "type": "image",
                         "source_type": "base64",
                         "mime_type": "image/png",
-                        "data": image_to_base64(image).decode('utf-8')
-                    }
-                ]
+                        "data": image_to_base64(image).decode("utf-8"),
+                    },
+                ],
             }
-            
         ],
     )
     return description
@@ -56,10 +55,9 @@ def load_document(file_path: Path) -> pypdf.PdfReader:
 def document_to_text(document: pypdf.PdfReader, llm: BaseChatModel) -> str:
     """Extract the text from all pages in the document.
     Add description for images found in the document.
-
     Args:
         document (pypdf.PdfReader): The PDF document to extract text from.
-
+        llm (BaseChatModel): LLM with vision capabilities to describe images
     Returns:
         str: full text
     """
@@ -73,7 +71,17 @@ def document_to_text(document: pypdf.PdfReader, llm: BaseChatModel) -> str:
     return text
 
 
-def ingest_docs(docs_path: str, llm_model: str = "gpt-5-nano"):
+def ingest_docs(docs_path: Path, llm_model: str = "gpt-5-nano"):
+    """Iterate throught docs_path and ingest documents into vector store.
+        Extract structured data if document is a CV, and show it
+
+    Args:
+        docs_path (Path): Path to the directory containing documents to ingest.
+        llm_model (str, optional): The LLM model to use for processing. Defaults to "gpt-5-nano".
+
+    Returns:
+        list: A list of document IDs for the ingested documents.
+    """
     llm = init_chat_llm(llm_model, use_tools=False)
     llm_with_structured_output = llm.with_structured_output(StructuredOutput)
     docs_path = Path(docs_path)

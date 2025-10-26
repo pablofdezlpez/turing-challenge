@@ -1,17 +1,15 @@
 from RestrictedPython import compile_restricted, safe_globals
-
 from langchain.tools import tool
 
 
 def safe_execute(code):
-    byte_code = compile_restricted(code, '<string>', 'exec')
+    byte_code = compile_restricted(code, "<string>", "exec")
     env = safe_globals.copy()
-    env['_print_'] = print
-    env['result'] = None
+    env["_print_"] = print  # To avoid errors if print is used
+    env["result"] = None
 
     exec(byte_code, env)
-    return str(env.get('result', 'No result variable defined.'))
-
+    return str(env.get("result", "No result variable defined."))
 
 
 @tool("execute_python_code", return_direct=True)

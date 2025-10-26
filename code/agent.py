@@ -10,7 +10,7 @@ from tools import execute_python_code
 
 @dataclass
 class State:
-    vector_store: object = None
+    vector_store: object = None  # TODO: use a retrievver type
     llm: BaseChatModel = None
     query: str = None
     chat_history: list[dict[str, str]] = None
@@ -19,6 +19,17 @@ class State:
     max_tokens: int = 100_000
 
 
+def create_initial_state(vector_store: object, n_retrieved_docs: int = 3, model="gpt-5-nano", temperature=0.0) -> State:
+    llm = init_chat_llm(model, temperature)
+    chat_history = [SystemMessage(content=SYSTEM_PROMPT)]
+    initial_state = State(
+        vector_store=vector_store, n_retrieved_docs=n_retrieved_docs, llm=llm, chat_history=chat_history
+    )
+
+    return initial_state
+
+
+##### DEFINITION OF NODES #####
 def get_user_input(state: State) -> str:
     # If there is no chat history, provide a default prompt
     assistant_message = "How can I assist you today?\n"
@@ -37,43 +48,10 @@ def get_user_input(state: State) -> str:
     return state
 
 
-def retriever(state: State):
+def retrieve(state: State):
     query = state.query
     docs = state.vector_store.similarity_search(query, k=state.n_retrieved_docs)
     state.context = [doc.page_content for doc in docs]
-    return state
-
-
-def is_chat_too_long(state: State) -> bool:
-    # TODO: Optimized so that total_tokens is hold in memory and only latests messages are calculated
-    total_tokens = 0
-    for message in state.chat_history:
-        tokens = state.llm.get_num_tokens(message.content)  # Accurate token counting
-        if total_tokens + tokens >= state.max_tokens:
-            return "summarize_chat_hist"
-        total_tokens += tokens
-    return "agent_invoke"
-
-
-def is_tool_call(state: State) -> bool:
-    last_message = state.chat_history[-1]
-    if isinstance(last_message, AIMessage) and len(last_message.tool_calls) > 0:
-        return "execute_tool"
-    return "user_input"
-
-
-def execute_tool(state: State) -> State:
-    last_message = state.chat_history[-1]
-    tool_call = last_message.tool_calls[0]
-
-    # TODO: find a generic way to call tools
-    if tool_call["name"] == "execute_python_code":
-        tool_output = execute_python_code.run(tool_call["args"])
-        observation_message = ToolMessage(content=f"Tool Output:\n{tool_output}", tool_call_id=tool_call["id"])
-        state.chat_history.append(observation_message)
-    else:
-        raise ValueError(f"Unknown tool: {tool_call['name']}")
-
     return state
 
 
@@ -97,17 +75,56 @@ def agent_invoke(state: State) -> State:
     return state
 
 
+def execute_tool(state: State) -> State:
+    last_message = state.chat_history[-1]
+    tool_call = last_message.tool_calls[0]
+
+    # TODO: find a generic way to call tools
+    if tool_call["name"] == "execute_python_code":
+        tool_output = execute_python_code.run(tool_call["args"])
+        observation_message = ToolMessage(content=f"Tool Output:\n{tool_output}", tool_call_id=tool_call["id"])
+        state.chat_history.append(observation_message)
+    else:
+        raise ValueError(f"Unknown tool: {tool_call['name']}")
+
+    return state
+
+
+#### DEFINETION OF EDGES / CONDITIONS #####
+
+
+def is_chat_too_long(state: State) -> bool:
+    # TODO: Optimized so that total_tokens is hold in memory and only latests messages are calculated
+    total_tokens = 0
+    for message in state.chat_history:
+        tokens = state.llm.get_num_tokens(message.content)  # Accurate token counting
+        if total_tokens + tokens >= state.max_tokens:
+            return "summarize_chat_hist"
+        total_tokens += tokens
+    return "agent_invoke"
+
+
+def is_tool_call(state: State) -> bool:
+    last_message = state.chat_history[-1]
+    if isinstance(last_message, AIMessage) and len(last_message.tool_calls) > 0:
+        return "execute_tool"
+    return "user_input"
+
+
+#### DEFINITION OF GRAPH AND RUNNER #####
+
+
 def build_graph() -> StateGraph:
     graph_builder = StateGraph(State)
     graph_builder.add_node("user_input", get_user_input)
-    graph_builder.add_node("retriever", retriever)
+    graph_builder.add_node("retrieve", retrieve)
     graph_builder.add_node("agent_invoke", agent_invoke)
     graph_builder.add_node("summarize_chat_hist", summarize_chat_hist)
     graph_builder.add_node("execute_tool", execute_tool)
 
     graph_builder.add_edge(START, "user_input")
-    graph_builder.add_edge("user_input", "retriever")
-    graph_builder.add_conditional_edges("retriever", is_chat_too_long)
+    graph_builder.add_edge("user_input", "retrieve")
+    graph_builder.add_conditional_edges("retrieve", is_chat_too_long)
     graph_builder.add_conditional_edges("agent_invoke", is_tool_call)
     graph_builder.add_edge("execute_tool", "user_input")
     graph_builder.add_edge("summarize_chat_hist", "agent_invoke")
@@ -115,16 +132,6 @@ def build_graph() -> StateGraph:
     # TODO: Escape node?
     graph = graph_builder.compile()
     return graph
-
-
-def create_initial_state(vector_store: object, n_retrieved_docs: int = 3, model="gpt-5-nano", temperature=0.0) -> State:
-    llm = init_chat_llm(model, temperature)
-    chat_history = [SystemMessage(content=SYSTEM_PROMPT)]
-    initial_state = State(
-        vector_store=vector_store, n_retrieved_docs=n_retrieved_docs, llm=llm, chat_history=chat_history
-    )
-
-    return initial_state
 
 
 def run_agent(graph: StateGraph, initial_state: State):
