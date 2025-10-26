@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from langchain_core.language_models.chat_models import BaseChatModel
-from langgraph.graph import START, StateGraph
+from langgraph.graph import START, StateGraph, END
 
 from prompts import SYSTEM_PROMPT, USER_PROMPT, SUMMARIZE_PROMPT
 from langchain.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
@@ -108,7 +108,7 @@ def is_tool_call(state: State) -> bool:
     last_message = state.chat_history[-1]
     if isinstance(last_message, AIMessage) and len(last_message.tool_calls) > 0:
         return "execute_tool"
-    return "user_input"
+    return "END"
 
 
 #### DEFINITION OF GRAPH AND RUNNER #####
@@ -116,17 +116,15 @@ def is_tool_call(state: State) -> bool:
 
 def build_graph() -> StateGraph:
     graph_builder = StateGraph(State)
-    graph_builder.add_node("user_input", get_user_input)
     graph_builder.add_node("retrieve", retrieve)
     graph_builder.add_node("agent_invoke", agent_invoke)
     graph_builder.add_node("summarize_chat_hist", summarize_chat_hist)
     graph_builder.add_node("execute_tool", execute_tool)
 
-    graph_builder.add_edge(START, "user_input")
-    graph_builder.add_edge("user_input", "retrieve")
+    graph_builder.add_edge(START, "retrieve")
     graph_builder.add_conditional_edges("retrieve", is_chat_too_long)
     graph_builder.add_conditional_edges("agent_invoke", is_tool_call)
-    graph_builder.add_edge("execute_tool", "user_input")
+    graph_builder.add_edge("execute_tool", END)
     graph_builder.add_edge("summarize_chat_hist", "agent_invoke")
 
     # TODO: Escape node?
@@ -136,6 +134,7 @@ def build_graph() -> StateGraph:
 
 def run_agent(graph: StateGraph, initial_state: State):
     state = initial_state
+    state = get_user_input(state)
     while True:
         state = graph.invoke(state)
 

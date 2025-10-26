@@ -16,6 +16,7 @@ openai = "*"
 python-dotenv = "*"
 pathlib = "*"
 restrictedpython = "*"
+gradio = "*"
 
 [dev-packages]
 
