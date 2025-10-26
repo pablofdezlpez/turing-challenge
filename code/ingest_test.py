@@ -39,7 +39,9 @@ def test_document_to_text(mocker, document_path):
     mocked_image = "mocked image"
     func1_mock = mocker.patch("ingest.image_to_text")
     func1_mock.return_value = mocked_image
+
     document = load_document(document_path)
     text = document_to_text(document, None)
+    
     assert isinstance(text, str)
     assert all(isinstance(line, str) for line in text.splitlines())

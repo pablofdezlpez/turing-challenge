@@ -1,5 +1,6 @@
 import io
 import pypdf
+import re
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from PIL import Image
@@ -42,7 +43,7 @@ def image_to_text(image: Image.Image, vision_llm: BaseChatModel) -> str:
             }
         ],
     )
-    return description
+    return description.content
 
 
 def load_document(file_path: Path) -> pypdf.PdfReader:
@@ -51,6 +52,21 @@ def load_document(file_path: Path) -> pypdf.PdfReader:
     document = pypdf.PdfReader(file_path)
     return document
 
+
+def fix_pypdf_spacing(text):
+    # 1. Merge letter-separated words (e.g. "H e l l o" -> "Hello")
+    text = re.sub(r'(?:(?:[A-Za-z]\s){2,}[A-Za-z])',
+                  lambda m: m.group(0).replace(' ', ''),
+                  text)
+    
+    # 2. Normalize multiple spaces/newlines
+    text = re.sub(r'\s{2,}', ' ', text)
+    
+    # 3. Fix spacing around punctuation
+    text = re.sub(r'\s+([.,;!?])', r'\1', text)
+    text = re.sub(r'([.,;!?])([A-Za-z])', r'\1 \2', text)
+    
+    return text.strip()
 
 def document_to_text(document: pypdf.PdfReader, llm: BaseChatModel) -> str:
     """Extract the text from all pages in the document.
@@ -63,7 +79,7 @@ def document_to_text(document: pypdf.PdfReader, llm: BaseChatModel) -> str:
     """
     text = ""
     for i, page in enumerate(document.pages):
-        text += page.extract_text()
+        text += fix_pypdf_spacing(page.extract_text(space_width=0.2))
         for count, image_file_object in enumerate(page.images):
             image = Image.open(io.BytesIO(image_file_object.data))
             text_image = image_to_text(image, llm)
@@ -92,7 +108,7 @@ def ingest_docs(docs_path: Path, llm_model: str = "gpt-5-nano"):
         # Transform document to text, split into chunks, and ingest into vector store
         text = document_to_text(document, llm)
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,  # chunk size (characters)
+            chunk_size=10000,  # chunk size (characters)
             chunk_overlap=200,  # chunk overlap (characters)
             add_start_index=True,  # track index in original document
         )
