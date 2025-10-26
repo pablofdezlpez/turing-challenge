@@ -4,7 +4,7 @@ from langgraph.graph import START, StateGraph, END
 
 from prompts import SYSTEM_PROMPT, USER_PROMPT, SUMMARIZE_PROMPT
 from langchain.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
-from utils import get_input, init_chat_llm, init_vector_store
+from utils import init_chat_llm, init_vector_store
 from tools import execute_python_code
 
 
@@ -30,22 +30,6 @@ def create_initial_state(vector_store: object, n_retrieved_docs: int = 3, model=
 
 
 ##### DEFINITION OF NODES #####
-def get_user_input(state: State) -> str:
-    # If there is no chat history, provide a default prompt
-    assistant_message = "How can I assist you today?\n"
-
-    # If exist chat history, show last assistant message
-    if len(state.chat_history) > 1:
-        if isinstance(state.chat_history[-1], HumanMessage):
-            # If last message is from user, raise error as two inputs have been collected
-            raise ValueError(f"Last message in chat history is already from user.{state.chat_history[-1].content}")
-        else:
-            assistant_message = state.chat_history[-1].content
-
-    user_input = get_input(assistant_message)
-
-    return user_input
-
 
 def retrieve(state: State):
     query = state.query
@@ -134,7 +118,7 @@ def build_graph() -> StateGraph:
 def run_agent(graph: StateGraph, initial_state: State):
     state = initial_state
     while True:
-        user_message = get_user_input(state)
+        user_message = input('User: ')
         state.chat_history.append(HumanMessage(content=user_message))
         state.query = user_message
         response = graph.invoke(state)

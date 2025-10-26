@@ -21,11 +21,6 @@ def image_to_base64(image: Image) -> str:
     return base64.b64encode(im_bytes)
 
 
-def get_input(text: str) -> str:
-    """Wrapper to be able to change user interaction"""
-    return input(text)
-
-
 def init_chat_llm(model: str = "gpt-4o-550k-2", temperature: float = 0.0, use_tools: bool = True) -> BaseChatModel:
     """Initialize a chat-based LLM.
 
