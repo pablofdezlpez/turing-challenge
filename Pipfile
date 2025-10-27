@@ -22,3 +22,6 @@ gradio = "*"
 
 [requires]
 python_version = "3.10"
+
+[object-detection]
+inference = "*"

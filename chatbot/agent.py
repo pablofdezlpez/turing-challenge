@@ -62,7 +62,6 @@ def execute_tool(state: State) -> State:
     last_message = state.chat_history[-1]
     tool_call = last_message.tool_calls[0]
 
-    # TODO: find a generic way to call tools
     if tool_call["name"] == "execute_python_code":
         tool_output = execute_python_code.run(tool_call["args"])
         observation_message = ToolMessage(content=f"Tool Output:\n{tool_output}", tool_call_id=tool_call["id"])
@@ -110,7 +109,6 @@ def build_graph() -> StateGraph:
     graph_builder.add_edge("execute_tool", END)
     graph_builder.add_edge("summarize_chat_hist", "agent_invoke")
 
-    # TODO: Escape node?
     graph = graph_builder.compile()
     return graph
 
