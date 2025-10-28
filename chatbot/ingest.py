@@ -10,6 +10,9 @@ from langchain.chat_models import BaseChatModel
 from utils import init_vector_store, init_chat_llm, image_to_base64
 from prompts import EXTRACT_PROMPT, IMAGE_DESCRIPTION_PROMPT
 import argparse
+import yaml
+
+CONFIG = yaml.safe_load(open("./chatbot/config.yaml"))
 
 class StructuredOutput(BaseModel):
     name: str
@@ -87,7 +90,7 @@ def document_to_text(document: pypdf.PdfReader, llm: BaseChatModel) -> str:
     return text
 
 
-def ingest_docs(docs_path: Path, llm_model: str = "gpt-5-nano"):
+def ingest_docs(docs_path: Path):
     """Iterate throught docs_path and ingest documents into vector store.
         Extract structured data if document is a CV, and show it
 
@@ -98,22 +101,25 @@ def ingest_docs(docs_path: Path, llm_model: str = "gpt-5-nano"):
     Returns:
         list: A list of document IDs for the ingested documents.
     """
-    llm = init_chat_llm(llm_model, use_tools=False)
+    llm = init_chat_llm(CONFIG['llm_model'], CONFIG['temperature'], use_tools=False)
     llm_with_structured_output = llm.with_structured_output(StructuredOutput)
     docs_path = Path(docs_path)
+    vector_store = init_vector_store()
+    text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1_000,  # chunk size (characters)
+            chunk_overlap=200,  # chunk overlap (characters)
+            add_start_index=True,  # track index in original document
+            separators=["\n\n", "\n", " ", ""],  # split by paragraphs, then lines, then words, then characters
+        )
     for file_path in docs_path.iterdir():
         print(f"Ingesting document: {file_path.name}")
         document = load_document(file_path)
 
         # Transform document to text, split into chunks, and ingest into vector store
         text = document_to_text(document, llm)
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=10000,  # chunk size (characters)
-            chunk_overlap=200,  # chunk overlap (characters)
-            add_start_index=True,  # track index in original document
-        )
-        chunks = text_splitter.create_documents(text)
-        vector_store = init_vector_store()
+        chunks = text_splitter.create_documents([text])
+        print('Number of chunks created:', len(chunks))
+        print('Sample chunk:', chunks[0].page_content[:500])
         document_ids = vector_store.add_documents(documents=chunks)
 
         # If document is a CV, extract structured data
@@ -128,6 +134,6 @@ if __name__ == "__main__":
         prog='Document Ingestor',
         description='Ingest documents from a specified directory into a vector store',
     )
-    parser.add_argument('-d', '--docs_path', type=str, help='Path to the directory containing documents to ingest. Only pdfs allowed. Documents with CV in their name will have basic information extracted in structured format.')
+    parser.add_argument('-d', '--docs_path', type=str, help='Path to the directory containing documents to ingest. Only pdfs allowed. Documents with CV in their name will have basic information extracted in structured format.', default='./chatbot/docs_to_ingest')
     args = parser.parse_args()
     ingest_docs(args.docs_path)

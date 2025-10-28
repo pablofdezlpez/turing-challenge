@@ -7,10 +7,12 @@ from langchain.messages import SystemMessage, HumanMessage, AIMessage, ToolMessa
 from utils import init_chat_llm, init_vector_store
 from tools import execute_python_code
 import argparse
+import yaml
 
+CONFIG = yaml.safe_load(open("./chatbot/config.yaml"))
 @dataclass
 class State:
-    vector_store: object = None  # TODO: use a retriever type
+    retriever: object = None 
     llm: BaseChatModel = None
     query: str = None
     chat_history: list[dict[str, str]] = None
@@ -19,11 +21,11 @@ class State:
     max_tokens: int = 100_000
 
 
-def create_initial_state(vector_store: object, n_retrieved_docs: int = 3, model="gpt-5-nano", temperature=0.0) -> State:
+def create_initial_state(retriever: object, n_retrieved_docs: int = 3, model="gpt-5-nano", temperature=0.0) -> State:
     llm = init_chat_llm(model, temperature)
     chat_history = [SystemMessage(content=SYSTEM_PROMPT)]
     initial_state = State(
-        vector_store=vector_store, n_retrieved_docs=n_retrieved_docs, llm=llm, chat_history=chat_history
+        retriever=retriever, n_retrieved_docs=n_retrieved_docs, llm=llm, chat_history=chat_history
     )
 
     return initial_state
@@ -33,7 +35,7 @@ def create_initial_state(vector_store: object, n_retrieved_docs: int = 3, model=
 
 def retrieve(state: State):
     query = state.query
-    docs = state.vector_store.similarity_search(query, k=state.n_retrieved_docs)
+    docs = state.retriever.invoke(query, k=state.n_retrieved_docs)
     state.context = [doc.page_content for doc in docs]
     return state
 
@@ -124,15 +126,7 @@ def run_agent(graph: StateGraph, initial_state: State):
         state.chat_history.append(AIMessage(content=response['chat_history'][-1].content))
 
 if __name__ == "__main__":
-    # Example usage
-    parser = argparse.ArgumentParser(
-        prog='Chatbot Agent',
-        description='Run a chatbot agent with document retrieval and tool execution capabilities',
-    )
-    parser.add_argument('-m', '--model', type=str, default='gpt-5-nano', help='LLM model to use')
-    parser.add_argument('-t', '--temperature', type=float, default=0.0, help='Temperature for LLM sampling')
-    args = parser.parse_args()
     vector_store = init_vector_store()
-    initial_state = create_initial_state(vector_store)
+    initial_state = create_initial_state(vector_store.as_retriever(search_kwargs={"k": CONFIG['n_retrieved_docs']}), model=CONFIG['llm_model'], temperature=CONFIG['temperature'])
     graph = build_graph()
     run_agent(graph, initial_state)

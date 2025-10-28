@@ -9,7 +9,9 @@ from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from PIL import Image
 from tools import execute_python_code
+import yaml
 
+CONFIG = yaml.safe_load(open("./chatbot/config.yaml"))
 dotenv.load_dotenv()
 
 
@@ -43,11 +45,7 @@ def init_chat_llm(model: str = "gpt-4o-550k-2", temperature: float = 0.0, use_to
     return llm
 
 
-def init_vector_store(
-    collection_name: str = "example_collection",
-    persist_directory: str = "./chroma_langchain_db",
-    embedding_model: str = "text-embedding-3-large",
-) -> object:
+def init_vector_store() -> object:
     """Initialize a vector store.
 
     Args:
@@ -57,10 +55,10 @@ def init_vector_store(
     Returns:
         object: The initialized vector store.
     """
-
+    config = CONFIG['vector_store']
     vector_store = Chroma(
-        collection_name=collection_name,
-        embedding_function=OpenAIEmbeddings(model=embedding_model),
-        persist_directory=persist_directory,
+        collection_name=config['collection_name'],
+        embedding_function=OpenAIEmbeddings(model=config['embedding_model']),
+        persist_directory=config['persist_directory'],
     )
     return vector_store

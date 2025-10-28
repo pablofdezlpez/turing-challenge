@@ -1,11 +1,13 @@
 import gradio as gr
 from agent import create_initial_state, init_vector_store, build_graph
 from langchain.messages import HumanMessage
+import yaml
 
+CONFIG = yaml.safe_load(open("./chatbot/config.yaml"))
 
 def build_interface():
     vector_store = init_vector_store()
-    initial_state = create_initial_state(vector_store)
+    initial_state = create_initial_state(vector_store.as_retriever(search_kwargs={"k": CONFIG['n_retrieved_docs']}), model=CONFIG['llm_model'], temperature=CONFIG['temperature'])
     graph = build_graph()
 
     def run(message, history):

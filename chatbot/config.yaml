@@ -1,0 +1,7 @@
+llm_model: gpt-5-nano
+vector_store:
+  collection_name: example_collection
+  persist_directory: ./chroma_langchain_db
+  embedding_model: text-embedding-3-large
+temperature: 0.0
+n_retrieved_docs: 5
