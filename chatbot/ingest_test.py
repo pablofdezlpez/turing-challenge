@@ -6,7 +6,7 @@ from pathlib import Path
 
 @pytest.fixture
 def document_path():
-    return Path("docs/sample.pdf")
+    return Path("chatbot/docs_to_ingest/sample.pdf")
 
 
 def test_load_document(document_path):

@@ -2,15 +2,15 @@ import pytest
 from langchain.messages import AIMessage
 from agent import is_chat_too_long, State, init_vector_store, create_initial_state, retrieve, is_tool_call
 from langgraph.graph import END
-
+import yaml
+CONFIG = yaml.safe_load(open("./chatbot/config.yaml"))
 
 def test_retrieve_returns_n_documents():
     vector_store = init_vector_store()
-    state = create_initial_state(vector_store)
-    state.num_retrieved_documents = 3
+    state = create_initial_state(vector_store.as_retriever(search_kwargs={"k": CONFIG['n_retrieved_docs']}))
     state.query = "sample query"
     state = retrieve(state)
-    assert len(state.context) == 3
+    assert len(state.context) == CONFIG['n_retrieved_docs']
 
 
 @pytest.mark.parametrize(

@@ -16,16 +16,16 @@ class State:
     llm: BaseChatModel = None
     query: str = None
     chat_history: list[dict[str, str]] = None
-    n_retrieved_docs: int = 5
     context: list[str] = None
     max_tokens: int = 100_000
+    current_tokens: int = 0
+    last_counted_message: int = 0
 
-
-def create_initial_state(retriever: object, n_retrieved_docs: int = 3, model="gpt-5-nano", temperature=0.0) -> State:
+def create_initial_state(retriever: object, model="gpt-5-nano", temperature=0.0) -> State:
     llm = init_chat_llm(model, temperature)
     chat_history = [SystemMessage(content=SYSTEM_PROMPT)]
     initial_state = State(
-        retriever=retriever, n_retrieved_docs=n_retrieved_docs, llm=llm, chat_history=chat_history
+        retriever=retriever, llm=llm, chat_history=chat_history
     )
 
     return initial_state
@@ -35,8 +35,8 @@ def create_initial_state(retriever: object, n_retrieved_docs: int = 3, model="gp
 
 def retrieve(state: State):
     query = state.query
-    docs = state.retriever.invoke(query, k=state.n_retrieved_docs)
-    state.context = [doc.page_content for doc in docs]
+    docs = state.retriever.invoke(query)
+    state.context = [doc.page_content for doc in docs]  
     return state
 
 
@@ -48,6 +48,11 @@ def summarize_chat_hist(state: State):
         summary,
         HumanMessage(content=user_message),
     ]
+    for message in state.chat_history[::-1]:
+        
+        tokens = state.llm.get_num_tokens(message.content)  # Accurate token counting
+        state.current_tokens += tokens
+        state.last_counted_message += 1
     return state
 
 
@@ -79,12 +84,13 @@ def execute_tool(state: State) -> State:
 
 def is_chat_too_long(state: State) -> bool:
     # TODO: Optimized so that total_tokens is hold in memory and only latests messages are calculated
-    total_tokens = 0
-    for message in state.chat_history:
+    last_counted_message = state.last_counted_message if state.last_counted_message > 0 else None
+    for message in state.chat_history[:last_counted_message:-1]:
         tokens = state.llm.get_num_tokens(message.content)  # Accurate token counting
-        if total_tokens + tokens >= state.max_tokens:
+        if state.current_tokens + tokens >= state.max_tokens:
             return "summarize_chat_hist"
-        total_tokens += tokens
+        state.current_tokens += tokens
+        state.last_counted_message += 1 
     return "agent_invoke"
 
 
