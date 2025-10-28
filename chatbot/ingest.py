@@ -128,6 +128,6 @@ if __name__ == "__main__":
         prog='Document Ingestor',
         description='Ingest documents from a specified directory into a vector store',
     )
-    parser.add_argument('-d', '--docs_path', type=str, help='Path to the directory containing documents to ingest')
+    parser.add_argument('-d', '--docs_path', type=str, help='Path to the directory containing documents to ingest. Only pdfs allowed. Documents with CV in their name will have basic information extracted in structured format.')
     args = parser.parse_args()
     ingest_docs(args.docs_path)
