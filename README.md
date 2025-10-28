@@ -1,17 +1,23 @@
 # turing-challenge
 
 |-chatbot
-|   |-código ingesta
-|   |-código chatbot
+|   |-config.yaml <-- archivo configuración para ingesta y chatbot
+|   |-agent.py <- código del chatbot incluyendo nodos y ejes
+|   |-ingest.py <- código de la ingesta
+|   |-prompts.py <- colección de prompts usados tanto en ingesta como chatbot
+|   |-tools.py <- definición de tools usadas por el agente
+|   |-user_interface.py <- código de gradio
 |   |-respuestas teóricas
 |-object_detector
-|   |-código object detector
+|   |-app.py <-código fastapi
+|   |-main.py <-código fuente object detector
 |   |-dockerfile
 |   |-futuras mejoras object detector
 |- Pipfile
 |_ Pipfile.lock
 
 # chatbot
+Usar config file para definir modelo, localización del vector store, número de documentos a retirar, etc.
 ## Como hacer ingesta? 
 
 Para realizar un trabajo de ingesta
@@ -26,12 +32,9 @@ Consideraciones:
 ## Uso de chatbot
 ### Usando consola
 ```
-python chatbot/agent.py -m nombre-modelo -t temperatura
+python chatbot/agent.py 
 ```
-Por defecto modelo=gpt-5-nano y temperatura=0
-
 consideraciones:
-- Sólo admite modelos de OpenAI
 - El agente es capaz de ejecutar código si se le pide
 
 ### Usando gracio
