@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from langchain.chat_models import BaseChatModel
 from utils import init_vector_store, init_chat_llm, image_to_base64
 from prompts import EXTRACT_PROMPT, IMAGE_DESCRIPTION_PROMPT
-
+import argparse
 
 class StructuredOutput(BaseModel):
     name: str
@@ -124,4 +124,10 @@ def ingest_docs(docs_path: Path, llm_model: str = "gpt-5-nano"):
 
 
 if __name__ == "__main__":
-    ingest_docs("docs/")
+    parser = argparse.ArgumentParser(
+        prog='Document Ingestor',
+        description='Ingest documents from a specified directory into a vector store',
+    )
+    parser.add_argument('-d', '--docs_path', type=str, help='Path to the directory containing documents to ingest')
+    args = parser.parse_args()
+    ingest_docs(args.docs_path)

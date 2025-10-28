@@ -6,11 +6,11 @@ from prompts import SYSTEM_PROMPT, USER_PROMPT, SUMMARIZE_PROMPT
 from langchain.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 from utils import init_chat_llm, init_vector_store
 from tools import execute_python_code
-
+import argparse
 
 @dataclass
 class State:
-    vector_store: object = None  # TODO: use a retrievver type
+    vector_store: object = None  # TODO: use a retriever type
     llm: BaseChatModel = None
     query: str = None
     chat_history: list[dict[str, str]] = None
@@ -125,6 +125,13 @@ def run_agent(graph: StateGraph, initial_state: State):
 
 if __name__ == "__main__":
     # Example usage
+    parser = argparse.ArgumentParser(
+        prog='Chatbot Agent',
+        description='Run a chatbot agent with document retrieval and tool execution capabilities',
+    )
+    parser.add_argument('-m', '--model', type=str, default='gpt-5-nano', help='LLM model to use')
+    parser.add_argument('-t', '--temperature', type=float, default=0.0, help='Temperature for LLM sampling')
+    args = parser.parse_args()
     vector_store = init_vector_store()
     initial_state = create_initial_state(vector_store)
     graph = build_graph()
