@@ -37,7 +37,7 @@ python chatbot/agent.py
 consideraciones:
 - El agente es capaz de ejecutar código si se le pide
 
-### Usando gracio
+### Usando gradio
 
 ```
 python chatbot/user_interface.py
