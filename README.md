@@ -1,5 +1,5 @@
 # turing-challenge
-
+```
 |-chatbot
 |   |-config.yaml <-- archivo configuración para ingesta y chatbot
 |   |-agent.py <- código del chatbot incluyendo nodos y ejes
@@ -15,7 +15,7 @@
 |   |-futuras mejoras object detector
 |- Pipfile
 |_ Pipfile.lock
-
+```
 # chatbot
 Usar config file para definir modelo, localización del vector store, número de documentos a retirar, etc.
 ## Como hacer ingesta? 
